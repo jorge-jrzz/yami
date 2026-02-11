@@ -1,0 +1,28 @@
+{
+  "name": "valentine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "tqm Yami",
+  "keywords": [
+    "love",
+    "yami"
+  ],
+  "license": "ISC",
+  "author": "Jorge Juarez",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
