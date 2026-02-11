@@ -13,7 +13,6 @@ const HEART_LIFETIME_MS = 5200;
 const TYPING_MS = 70;
 const DODGE_COOLDOWN_MS = 140;
 const MOBILE_ROAM_INTERVAL_MS = 620;
-const CATCH_ME_TEXT_MS = 1400;
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +22,7 @@ function App() {
   const [noMoves, setNoMoves] = useState(0);
   const [isTypingDone, setIsTypingDone] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  const [noCatchText, setNoCatchText] = useState("");
+  const noCatchText = useState("");
   const [noButtonStyle, setNoButtonStyle] = useState({});
   const noButtonRef = useRef(null);
   const typedOnce = useRef(false);
@@ -175,14 +174,6 @@ function App() {
     [moveNoButtonAway],
   );
 
-  const showCatchMeText = useCallback(() => {
-    setNoCatchText("Atrápame si puedes 😜");
-    const timer = setTimeout(() => {
-      setNoCatchText("");
-    }, CATCH_ME_TEXT_MS);
-    timersRef.current.push(timer);
-  }, []);
-
   const handleNoTouchStart = useCallback(
     (event) => {
       if (!isCoarsePointer) return;
@@ -192,13 +183,11 @@ function App() {
         dodgeNoButton(event);
         return;
       }
-
-      showCatchMeText();
       rotateRef.current = (rotateRef.current + 120) % 360;
       moveNoButtonAway(getPointFromEvent(event), rotateRef.current);
       setNoMoves((prev) => prev + 1);
     },
-    [dodgeNoButton, isCoarsePointer, isTypingDone, moveNoButtonAway, showCatchMeText],
+    [dodgeNoButton, isCoarsePointer, isTypingDone, moveNoButtonAway],
   );
 
   const handleNoPointerDown = useCallback(
@@ -212,11 +201,8 @@ function App() {
   const handleNoClick = useCallback(
     (event) => {
       event.preventDefault();
-      if (isCoarsePointer && isTypingDone) {
-        showCatchMeText();
-      }
     },
-    [isCoarsePointer, isTypingDone, showCatchMeText],
+    [isCoarsePointer, isTypingDone],
   );
 
   useEffect(() => {
@@ -239,6 +225,8 @@ function App() {
 
   const noButtonLabel =
     !isCoarsePointer && noMoves > 2 ? "Ni lo intentes 😅" : "No 🙈";
+
+  const date = new Date();
 
   return (
     <>
@@ -264,8 +252,10 @@ function App() {
 
       <main className="main">
         <section className="letter">
-          <span className="tag">Para Yami, con todo mi amor</span>
-          <h2>Mi carta para ti</h2>
+          <span className="tag">
+            {date.getDate()}/{date.getMonth() + 1}/{date.getFullYear()}, CDMX 
+          </span>
+          <h2>Para ti, querida Yamilet</h2>
           <p id="typedText">{typedText}</p>
 
           {isTypingDone && (
@@ -298,7 +288,7 @@ function App() {
           )}
 
           <p className={`result ${showResult ? "show" : ""}`}>
-            Ahora oficialmente eres mi San Valentín. Te amo.
+            Ahora oficialmente eres mi San Valentín. Te quiero mucho ❤️ 
           </p>
         </section>
       </main>
