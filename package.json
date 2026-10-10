@@ -1,28 +1,17 @@
 {
-  "name": "valentine",
+  "name": "yami-birthday",
   "version": "1.0.0",
   "private": true,
-  "description": "tqm Yami",
-  "keywords": [
-    "love",
-    "yami"
-  ],
-  "license": "ISC",
-  "author": "Jorge Juarez",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "start": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "description": "Una sorpresa de cumpleaños para Yami",
   "dependencies": {
+    "balloons-js": "^0.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11"
+  "scripts": {
+    "dev": "bun server.js --dev",
+    "build": "bun build.js",
+    "start": "bun server.js"
   }
 }

@@ -1,315 +1,355 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { balloons } from "balloons-js";
+import { carta } from "./carta.js";
 
-const letterText = [
-  "Desde que llegaste, todo se siente más bonito.",
-  "Me haces sonreír incluso en los días difíciles, y contigo todo vale más la pena.",
-  "Hoy quiero preguntarte algo que me hace mucha ilusión:",
-  "",
-  "¿Quieres ser mi San Valentín?",
-].join("\n");
+const REVEAL_DELAY_MS = 1200;
+const LETTER_PHOTO_POSITIONS = ["left", "right", "center"];
+const LETTER_HEARTS = Array.from({ length: 22 }, (_, index) => ({
+  left: `${(index * 47 + 13) % 100}%`,
+  delay: `${(index % 7) * 0.18}s`,
+  duration: `${2.6 + (index % 4) * 0.4}s`,
+  size: `${16 + (index % 4) * 6}px`,
+  drift: `${(index % 2 ? 1 : -1) * (18 + (index % 5) * 8)}px`,
+}));
 
-const HEART_COUNT = 65;
-const HEART_LIFETIME_MS = 5200;
-const TYPING_MS = 70;
-const DODGE_COOLDOWN_MS = 140;
-const MOBILE_ROAM_INTERVAL_MS = 620;
-
-function App() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [typedText, setTypedText] = useState("");
-  const [showResult, setShowResult] = useState(false);
-  const [hearts, setHearts] = useState([]);
-  const [noMoves, setNoMoves] = useState(0);
-  const [isTypingDone, setIsTypingDone] = useState(false);
-  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  const noCatchText = useState("");
-  const [noButtonStyle, setNoButtonStyle] = useState({});
-  const noButtonRef = useRef(null);
-  const typedOnce = useRef(false);
-  const timersRef = useRef([]);
-  const typingTimerRef = useRef(null);
-  const lastDodgeAtRef = useRef(0);
-  const mobileRoamTimerRef = useRef(null);
-  const rotateRef = useRef(0);
-
-  useEffect(() => {
-    return () => {
-      if (typingTimerRef.current) {
-        clearInterval(typingTimerRef.current);
-      }
-      if (mobileRoamTimerRef.current) {
-        clearInterval(mobileRoamTimerRef.current);
-      }
-      timersRef.current.forEach((timer) => clearTimeout(timer));
-      timersRef.current = [];
-    };
-  }, []);
-
-  useEffect(() => {
-    const query = window.matchMedia("(pointer: coarse)");
-    const updatePointerType = () => {
-      setIsCoarsePointer(query.matches);
-    };
-
-    updatePointerType();
-    query.addEventListener("change", updatePointerType);
-    return () => {
-      query.removeEventListener("change", updatePointerType);
-    };
-  }, []);
-
-  const startTyping = () => {
-    if (typedOnce.current) return;
-    typedOnce.current = true;
-    setTypedText("");
-    setIsTypingDone(false);
-
-    if (typingTimerRef.current) {
-      clearInterval(typingTimerRef.current);
-      typingTimerRef.current = null;
-    }
-
-    let i = 0;
-    typingTimerRef.current = setInterval(() => {
-      i += 1;
-      setTypedText(letterText.slice(0, i));
-
-      if (i >= letterText.length) {
-        clearInterval(typingTimerRef.current);
-        typingTimerRef.current = null;
-        setIsTypingDone(true);
-      }
-    }, TYPING_MS);
-  };
-
-  const celebrate = () => {
-    setShowResult(true);
-
-    const nextHearts = Array.from({ length: HEART_COUNT }, (_, index) => ({
-      id: `${Date.now()}-${index}-${Math.random()}`,
-      emoji: Math.random() > 0.3 ? "💖" : "💗",
-      left: `${Math.random() * 100}vw`,
-      animationDuration: `${2 + Math.random() * 2.8}s`,
-      fontSize: `${0.8 + Math.random() * 1.3}rem`,
-      opacity: String(0.5 + Math.random() * 0.5),
-    }));
-
-    setHearts((prev) => [...prev, ...nextHearts]);
-
-    nextHearts.forEach((heart) => {
-      const timer = setTimeout(() => {
-        setHearts((prev) => prev.filter((item) => item.id !== heart.id));
-      }, HEART_LIFETIME_MS);
-      timersRef.current.push(timer);
-    });
-  };
-
-  const getPointFromEvent = (event) => {
-    if (!event) return null;
-    if ("touches" in event && event.touches?.[0]) {
-      return { x: event.touches[0].clientX, y: event.touches[0].clientY };
-    }
-    if ("changedTouches" in event && event.changedTouches?.[0]) {
-      return {
-        x: event.changedTouches[0].clientX,
-        y: event.changedTouches[0].clientY,
-      };
-    }
-    if ("clientX" in event && "clientY" in event) {
-      return { x: event.clientX, y: event.clientY };
-    }
-    return null;
-  };
-
-  const moveNoButtonAway = useCallback((point, angle) => {
-    const button = noButtonRef.current;
-    if (!button) return;
-
-    const maxX = window.innerWidth - button.offsetWidth - 20;
-    const maxY = window.innerHeight - button.offsetHeight - 20;
-
-    let bestX = Math.max(10, Math.random() * maxX);
-    let bestY = Math.max(10, Math.random() * maxY);
-    let bestDistance = -1;
-
-    for (let i = 0; i < 18; i += 1) {
-      const candidateX = Math.max(10, Math.random() * maxX);
-      const candidateY = Math.max(10, Math.random() * maxY);
-      if (!point) {
-        bestX = candidateX;
-        bestY = candidateY;
-        break;
-      }
-      const distance = Math.hypot(point.x - candidateX, point.y - candidateY);
-      if (distance > bestDistance) {
-        bestDistance = distance;
-        bestX = candidateX;
-        bestY = candidateY;
-      }
-    }
-
-    const nextStyle = {
-      position: "fixed",
-      left: `${bestX}px`,
-      top: `${bestY}px`,
-      zIndex: 30,
-      width: "max-content",
-    };
-    if (typeof angle === "number") {
-      nextStyle.transform = `rotate(${angle}deg)`;
-    }
-
-    setNoButtonStyle(nextStyle);
-  }, []);
-
-  const dodgeNoButton = useCallback(
-    (event) => {
-      if (event?.preventDefault) event.preventDefault();
-      const now = Date.now();
-      if (now - lastDodgeAtRef.current < DODGE_COOLDOWN_MS) return;
-      lastDodgeAtRef.current = now;
-      moveNoButtonAway(getPointFromEvent(event));
-      setNoMoves((prev) => prev + 1);
-    },
-    [moveNoButtonAway],
-  );
-
-  const handleNoTouchStart = useCallback(
-    (event) => {
-      if (!isCoarsePointer) return;
-      if (event?.preventDefault) event.preventDefault();
-
-      if (!isTypingDone) {
-        dodgeNoButton(event);
-        return;
-      }
-      rotateRef.current = (rotateRef.current + 120) % 360;
-      moveNoButtonAway(getPointFromEvent(event), rotateRef.current);
-      setNoMoves((prev) => prev + 1);
-    },
-    [dodgeNoButton, isCoarsePointer, isTypingDone, moveNoButtonAway],
-  );
-
-  const handleNoPointerDown = useCallback(
-    (event) => {
-      if (event.pointerType === "touch") return;
-      dodgeNoButton(event);
-    },
-    [dodgeNoButton],
-  );
-
-  const handleNoClick = useCallback(
-    (event) => {
-      event.preventDefault();
-    },
-    [isCoarsePointer, isTypingDone],
-  );
-
-  useEffect(() => {
-    if (!isOpen || !isTypingDone || !isCoarsePointer || showResult) return;
-
-    const roam = () => {
-      rotateRef.current = (rotateRef.current + 135) % 360;
-      moveNoButtonAway(null, rotateRef.current);
-    };
-
-    roam();
-    mobileRoamTimerRef.current = setInterval(roam, MOBILE_ROAM_INTERVAL_MS);
-    return () => {
-      if (mobileRoamTimerRef.current) {
-        clearInterval(mobileRoamTimerRef.current);
-        mobileRoamTimerRef.current = null;
-      }
-    };
-  }, [isOpen, isTypingDone, isCoarsePointer, showResult, moveNoButtonAway]);
-
-  const noButtonLabel =
-    !isCoarsePointer && noMoves > 2 ? "Ni lo intentes 😅" : "No 🙈";
-
-  const date = new Date();
+function WallSwitch({ onLightOn }) {
+  const [isOn, setIsOn] = useState(false);
 
   return (
-    <>
-      <div className={`overlay ${isOpen ? "hidden" : ""}`}>
-        <section className="cover-card">
-          <h1>Tengo algo importante que decirte...</h1>
-          <p>
-            Preparé esta carta para ti con mucho cariño.
-            <br />
-            Ábrela cuando estés lista.
-          </p>
-          <button
-            className="cta"
-            onClick={() => {
-              setIsOpen(true);
-              startTyping();
-            }}
-          >
-            Abrir carta 💌
-          </button>
-        </section>
+    <div className={`switch-scene${isOn ? " switch-scene--lit" : ""}`}>
+      <div className="switch-intro">
+        <h1>Yami, prende la luz</h1>
       </div>
 
-      <main className="main">
-        <section className="letter">
-          <span className="tag">
-            {date.getDate()}/{date.getMonth() + 1}/{date.getFullYear()}, CDMX 
-          </span>
-          <h2>Para ti, querida Yamilet</h2>
-          <p id="typedText">{typedText}</p>
-
-          {isTypingDone && (
-            <>
-              <div className="buttons">
-                <button className="cta" onClick={celebrate}>
-                  Sí 💖
-                </button>
-                {!showResult && (
-                  <button
-                    ref={noButtonRef}
-                    className="alt no-button"
-                    style={noButtonStyle}
-                    onMouseEnter={!isCoarsePointer ? dodgeNoButton : undefined}
-                    onFocus={dodgeNoButton}
-                    onPointerDown={handleNoPointerDown}
-                    onTouchStart={handleNoTouchStart}
-                    onClick={handleNoClick}
-                  >
-                    {noButtonLabel}
-                  </button>
-                )}
+      <label className="switch-wrap">
+        <input
+          aria-label="Encender la luz y revelar la sorpresa"
+          className="light-switch"
+          type="checkbox"
+          checked={isOn}
+          disabled={isOn}
+          onChange={(event) => {
+            setIsOn(event.target.checked);
+            if (event.target.checked) onLightOn();
+          }}
+        />
+        <div className="wall-panel" aria-hidden="true">
+          <div className="switch__screw top">
+            <div className="switch__screw-slot" />
+          </div>
+          <div className="switch__hole">
+            <div className="switch__groove">
+              <div className="switch__lever">
+                <div className="switch__shadow-box top">
+                  <div className="switch__shadow top" />
+                </div>
+                <div className="switch__shadow-box bottom">
+                  <div className="switch__shadow bottom" />
+                </div>
+                <div className="switch__top">
+                  <div className="switch__top-outset" />
+                </div>
+                <div className="switch__bottom">
+                  <div className="switch__bottom-outset" />
+                </div>
               </div>
-              {!showResult && (
-                <p className={`no-catch-text ${noCatchText ? "show" : ""}`} aria-live="polite">
-                  {noCatchText}
-                </p>
-              )}
-            </>
+            </div>
+          </div>
+          <div className="switch__screw bottom">
+            <div className="switch__screw-slot" />
+          </div>
+        </div>
+      </label>
+
+      <div className="light-overlay" />
+    </div>
+  );
+}
+
+function AudioControls({ isPaused, isMuted, onTogglePause, onToggleMute }) {
+  return (
+    <div className="audio-controls" role="group" aria-label="Controles de la canción">
+      <button
+        className="audio-control-button"
+        type="button"
+        aria-label={isPaused ? "Reanudar canción" : "Pausar canción"}
+        title={isPaused ? "Reanudar canción" : "Pausar canción"}
+        aria-pressed={isPaused}
+        onClick={onTogglePause}
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          {isPaused ? (
+            <path d="M8 5.5v13L19 12 8 5.5Z" />
+          ) : (
+            <path d="M8 5v14M16 5v14" />
           )}
+        </svg>
+      </button>
+      <button
+        className="audio-control-button"
+        type="button"
+        aria-label={isMuted ? "Activar sonido" : "Silenciar canción"}
+        title={isMuted ? "Activar sonido" : "Silenciar canción"}
+        aria-pressed={isMuted}
+        onClick={onToggleMute}
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M4 10v4h4l5 4V6l-5 4H4Z" />
+          {isMuted ? (
+            <path d="m17 9 5 6m0-6-5 6" />
+          ) : (
+            <path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12" />
+          )}
+        </svg>
+      </button>
+    </div>
+  );
+}
 
-          <p className={`result ${showResult ? "show" : ""}`}>
-            Ahora oficialmente eres mi San Valentín. Te quiero mucho ❤️ 
-          </p>
-        </section>
-      </main>
+function BirthdayGreeting({
+  isSongPaused,
+  isSongMuted,
+  onTogglePause,
+  onToggleMute,
+}) {
+  const [isLetterOpen, setIsLetterOpen] = useState(false);
+  const closeButton = useRef(null);
+  const sealButton = useRef(null);
 
-      <div className="heart-rain">
-        {hearts.map((heart) => (
-          <span
-            key={heart.id}
-            className="heart"
-            style={{
-              left: heart.left,
-              animationDuration: heart.animationDuration,
-              fontSize: heart.fontSize,
-              opacity: heart.opacity,
-            }}
-          >
-            {heart.emoji}
-          </span>
-        ))}
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (prefersReducedMotion) return;
+
+    const timer = window.setTimeout(() => {
+      balloons();
+      document.querySelector("balloons")?.style.setProperty("z-index", "1", "important");
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isLetterOpen) return;
+
+    const shell = document.querySelector(".app-shell");
+    const previousOverflow = shell.style.overflowY;
+    shell.style.overflowY = "hidden";
+    closeButton.current?.focus();
+
+    const onEscape = (event) => {
+      if (event.key === "Escape") setIsLetterOpen(false);
+    };
+
+    window.addEventListener("keydown", onEscape);
+    return () => {
+      shell.style.overflowY = previousOverflow;
+      window.removeEventListener("keydown", onEscape);
+      sealButton.current?.focus();
+    };
+  }, [isLetterOpen]);
+
+  const openLetter = () => {
+    setIsLetterOpen(true);
+  };
+
+  return (
+    <main className="birthday-scene">
+      <AudioControls
+        isPaused={isSongPaused}
+        isMuted={isSongMuted}
+        onTogglePause={onTogglePause}
+        onToggleMute={onToggleMute}
+      />
+
+      <div className="birthday-card">
+        <img
+          className="birthday-photo"
+          src="./images/yamita.webp"
+          alt="Yamita celebrando su cumpleaños"
+          width="768"
+          height="1024"
+          loading="eager"
+          fetchPriority="high"
+        />
+        <h1>¡Felices 23, Yami!</h1>
+        <div className="birthday-cake" role="img" aria-label="Pastel de cumpleaños">
+          🎂
+        </div>
       </div>
-    </>
+
+      <section className="letter-section" aria-label="Carta de cumpleaños">
+        <div className="letter-container">
+          <div className="envelope-back" aria-hidden="true">
+            <svg viewBox="0 0 375 220" preserveAspectRatio="none">
+              <rect className="envelope-back-base" width="375" height="220" />
+            </svg>
+          </div>
+
+          <div className="envelope-front">
+            <div className="seal-container">
+              <button
+                ref={sealButton}
+                className="envelope-seal"
+                type="button"
+                aria-label="Abrir carta para Yami"
+                aria-expanded={isLetterOpen}
+                aria-controls="heartfelt-letter"
+                onClick={openLetter}
+              >
+                ♥
+              </button>
+            </div>
+            <svg viewBox="0 0 375 220" preserveAspectRatio="none" aria-hidden="true">
+              <polygon
+                className="envelope-front-base"
+                points="0,0 187,154 375,0 375,220 0,220 0,0"
+              />
+              <polygon className="envelope-flap-closed" points="0,0 375,0 187,154 0,0" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      {isLetterOpen && (
+        <div className="letter-modal" role="presentation">
+          <div className="letter-hearts" aria-hidden="true">
+            {LETTER_HEARTS.map((heart, index) => (
+              <span
+                className="letter-heart"
+                key={index}
+                style={{
+                  left: heart.left,
+                  animationDelay: heart.delay,
+                  animationDuration: heart.duration,
+                  fontSize: heart.size,
+                  "--drift": heart.drift,
+                }}
+              >
+                ♥
+              </span>
+            ))}
+          </div>
+          <article
+            className="letter-page"
+            id="heartfelt-letter"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="letter-title"
+          >
+            <button
+              ref={closeButton}
+              className="letter-close"
+              type="button"
+              aria-label="Cerrar carta"
+              onClick={() => setIsLetterOpen(false)}
+            >
+              ×
+            </button>
+            <div className="letter-page-copy">
+              <h2 id="letter-title">{carta.titulo}</h2>
+              <p className="letter-message">{carta.parrafos[0]}</p>
+              {LETTER_PHOTO_POSITIONS.map((position, index) => (
+                <div className="letter-chapter" key={position}>
+                  <figure className={`letter-photo letter-photo--${position}`}>
+                    <div
+                      className="letter-photo-placeholder"
+                      role="img"
+                      aria-label={`Foto ${index + 1}`}
+                    >
+                      {index + 1}
+                    </div>
+                  </figure>
+                  <p className="letter-message">{carta.parrafos[index + 1]}</p>
+                </div>
+              ))}
+              <p className="letter-signature">{carta.firma}</p>
+            </div>
+          </article>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function App() {
+  const [showBirthday, setShowBirthday] = useState(false);
+  const [isSongPaused, setIsSongPaused] = useState(false);
+  const [isSongMuted, setIsSongMuted] = useState(false);
+  const revealTimer = useRef(null);
+  const birthdaySong = useRef(null);
+
+  useEffect(() => {
+    const image = new Image();
+    image.src = "./images/yamita.webp";
+    image.decode().catch(() => {});
+
+    return () => {
+      if (revealTimer.current) window.clearTimeout(revealTimer.current);
+      birthdaySong.current?.pause();
+    };
+  }, []);
+
+  const revealBirthday = () => {
+    const song = new Audio("./audio/cepillin.mp3");
+    song.preload = "auto";
+    birthdaySong.current = song;
+    song.addEventListener("ended", () => setIsSongPaused(true), { once: true });
+    song.play().then(
+      () => setIsSongPaused(false),
+      (error) => {
+        setIsSongPaused(true);
+        console.error("No se pudo iniciar la canción de cumpleaños:", error);
+      },
+    );
+
+    revealTimer.current = window.setTimeout(
+      () => setShowBirthday(true),
+      REVEAL_DELAY_MS,
+    );
+  };
+
+  const toggleSongPlayback = () => {
+    const song = birthdaySong.current;
+    if (!song) return;
+
+    if (song.paused) {
+      if (song.ended) song.currentTime = 0;
+      song.play().then(
+        () => setIsSongPaused(false),
+        (error) => console.error("No se pudo reanudar la canción:", error),
+      );
+    } else {
+      song.pause();
+      setIsSongPaused(true);
+    }
+  };
+
+  const toggleSongMute = () => {
+    const song = birthdaySong.current;
+    if (!song) return;
+
+    song.muted = !song.muted;
+    setIsSongMuted(song.muted);
+  };
+
+  return (
+    <div className={`app-shell${showBirthday ? " app-shell--revealed" : ""}`}>
+      <div className="switch-stage" aria-hidden={showBirthday}>
+        <WallSwitch onLightOn={revealBirthday} />
+      </div>
+      <div className="birthday-stage" aria-hidden={!showBirthday}>
+        {showBirthday && (
+          <BirthdayGreeting
+            isSongPaused={isSongPaused}
+            isSongMuted={isSongMuted}
+            onTogglePause={toggleSongPlayback}
+            onToggleMute={toggleSongMute}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
