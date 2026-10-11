@@ -31,4 +31,4 @@ Me guardas una rebanada de pastel, que los cumplas feliz y que cumplas muchos m�
 
 Con todo mi amor, Jorge
 
-[Ver versión ilegible xd](https://github.com/jorge-jrzz/yami/blob/82f5f5d25626d56515be58d119975a6d08ae9332/public/documents/carta.pdf)
+[Ver versión ilegible xd](https://jorge-jrzz.github.io/yami/documents/carta.pdf)

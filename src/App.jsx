@@ -170,7 +170,7 @@ function BirthdayGreeting({
   onToggleMute,
 }) {
   const [isLetterOpen, setIsLetterOpen] = useState(false);
-  const closeButton = useRef(null);
+  const letterDialog = useRef(null);
   const sealButton = useRef(null);
 
   useEffect(() => {
@@ -193,7 +193,7 @@ function BirthdayGreeting({
     const shell = document.querySelector(".app-shell");
     const previousOverflow = shell.style.overflowY;
     shell.style.overflowY = "hidden";
-    closeButton.current?.focus();
+    letterDialog.current?.focus();
 
     const onEscape = (event) => {
       if (event.key === "Escape") setIsLetterOpen(false);
@@ -300,14 +300,15 @@ function BirthdayGreeting({
             ))}
           </div>
           <article
+            ref={letterDialog}
             className="letter-page"
             id="heartfelt-letter"
             role="dialog"
             aria-modal="true"
             aria-label="Carta para Yami"
+            tabIndex={-1}
           >
             <button
-              ref={closeButton}
               className="letter-close"
               type="button"
               aria-label="Cerrar carta"
