@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { cp } from "node:fs/promises";
 
 export async function build({ minify = true } = {}) {
   const result = await Bun.build({
@@ -19,14 +19,5 @@ export async function build({ minify = true } = {}) {
   }
 
   await Bun.write("./dist/index.html", Bun.file("./index.html"));
-  await mkdir("./dist/audio", { recursive: true });
-  await Bun.write(
-    "./dist/audio/cepillin.mp3",
-    Bun.file("./public/audio/cepillin.mp3"),
-  );
-  await mkdir("./dist/images", { recursive: true });
-  await Bun.write(
-    "./dist/images/yamita.webp",
-    Bun.file("./public/images/yamita.webp"),
-  );
+  await cp("./public", "./dist", { recursive: true });
 }

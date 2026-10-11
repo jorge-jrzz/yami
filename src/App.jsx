@@ -1,9 +1,66 @@
 import { useEffect, useRef, useState } from "react";
 import { balloons } from "balloons-js";
-import { carta } from "./carta.js";
+import Markdown from "react-markdown";
+import carta from "../content/carta.md" with { type: "text" };
 
 const REVEAL_DELAY_MS = 1200;
-const LETTER_PHOTO_POSITIONS = ["left", "right", "center"];
+const LETTER_PHOTOS = {
+  "./images/love-1.jpeg": {
+    position: "left",
+    width: 540,
+    height: 352,
+    location: "CDMX",
+    month: "agosto",
+  },
+  "./images/love-2.jpeg": {
+    position: "right",
+    width: 1024,
+    height: 768,
+    location: "CDMX",
+    month: "marzo",
+  },
+  "./images/love-3.jpeg": {
+    position: "center",
+    width: 768,
+    height: 1024,
+    location: "SLP",
+    month: "agosto",
+  },
+};
+
+const letterComponents = {
+  p({ node, children }) {
+    const image = node.children.length === 1 && node.children[0];
+    if (image?.tagName === "img") {
+      const { src, alt } = image.properties;
+      const photo = LETTER_PHOTOS[src];
+      return (
+        <figure className={`letter-photo letter-photo--${photo?.position || "center"}`}>
+          <img
+            src={src}
+            alt={alt || "Un recuerdo juntos"}
+            width={photo?.width}
+            height={photo?.height}
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>
+            <span>{photo?.location}</span>
+            <span>{photo?.month}</span>
+          </figcaption>
+        </figure>
+      );
+    }
+    return <p>{children}</p>;
+  },
+  a({ href, children }) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
+  },
+};
 const LETTER_HEARTS = Array.from({ length: 22 }, (_, index) => ({
   left: `${(index * 47 + 13) % 100}%`,
   delay: `${(index % 7) * 0.18}s`,
@@ -124,7 +181,7 @@ function BirthdayGreeting({
 
     const timer = window.setTimeout(() => {
       balloons();
-      document.querySelector("balloons")?.style.setProperty("z-index", "1", "important");
+      document.querySelector("balloons")?.style.setProperty("z-index", "2147483647", "important");
     }, 180);
 
     return () => window.clearTimeout(timer);
@@ -174,33 +231,44 @@ function BirthdayGreeting({
           fetchPriority="high"
         />
         <h1>¡Felices 23, Yami!</h1>
-        <div className="birthday-cake" role="img" aria-label="Pastel de cumpleaños">
-          🎂
-        </div>
+        <img
+          className="birthday-cake-image"
+          src="./images/pastel.png"
+          alt="Pastel de cumpleaños con velas del 23"
+          width="1280"
+          height="1280"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
+
+      <div className="scroll-invitation">
+        <p>Abre el sobre, tengo algo para ti.</p>
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 3v16m-7-7 7 7 7-7" />
+        </svg>
       </div>
 
       <section className="letter-section" aria-label="Carta de cumpleaños">
-        <div className="letter-container">
-          <div className="envelope-back" aria-hidden="true">
+        <button
+          ref={sealButton}
+          className="letter-container"
+          type="button"
+          aria-label="Abrir carta para Yami"
+          aria-expanded={isLetterOpen}
+          aria-haspopup="dialog"
+          onClick={openLetter}
+        >
+          <span className="envelope-back" aria-hidden="true">
             <svg viewBox="0 0 375 220" preserveAspectRatio="none">
               <rect className="envelope-back-base" width="375" height="220" />
             </svg>
-          </div>
+          </span>
 
-          <div className="envelope-front">
-            <div className="seal-container">
-              <button
-                ref={sealButton}
-                className="envelope-seal"
-                type="button"
-                aria-label="Abrir carta para Yami"
-                aria-expanded={isLetterOpen}
-                aria-controls="heartfelt-letter"
-                onClick={openLetter}
-              >
-                ♥
-              </button>
-            </div>
+          <span className="envelope-front" aria-hidden="true">
+            <span className="seal-container">
+              <span className="envelope-seal">♥</span>
+            </span>
             <svg viewBox="0 0 375 220" preserveAspectRatio="none" aria-hidden="true">
               <polygon
                 className="envelope-front-base"
@@ -208,8 +276,8 @@ function BirthdayGreeting({
               />
               <polygon className="envelope-flap-closed" points="0,0 375,0 187,154 0,0" />
             </svg>
-          </div>
-        </div>
+          </span>
+        </button>
       </section>
 
       {isLetterOpen && (
@@ -236,7 +304,7 @@ function BirthdayGreeting({
             id="heartfelt-letter"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="letter-title"
+            aria-label="Carta para Yami"
           >
             <button
               ref={closeButton}
@@ -247,24 +315,8 @@ function BirthdayGreeting({
             >
               ×
             </button>
-            <div className="letter-page-copy">
-              <h2 id="letter-title">{carta.titulo}</h2>
-              <p className="letter-message">{carta.parrafos[0]}</p>
-              {LETTER_PHOTO_POSITIONS.map((position, index) => (
-                <div className="letter-chapter" key={position}>
-                  <figure className={`letter-photo letter-photo--${position}`}>
-                    <div
-                      className="letter-photo-placeholder"
-                      role="img"
-                      aria-label={`Foto ${index + 1}`}
-                    >
-                      {index + 1}
-                    </div>
-                  </figure>
-                  <p className="letter-message">{carta.parrafos[index + 1]}</p>
-                </div>
-              ))}
-              <p className="letter-signature">{carta.firma}</p>
+            <div className="letter-page-copy letter-markdown">
+              <Markdown components={letterComponents}>{carta}</Markdown>
             </div>
           </article>
         </div>
@@ -279,19 +331,27 @@ function App() {
   const [isSongMuted, setIsSongMuted] = useState(false);
   const revealTimer = useRef(null);
   const birthdaySong = useRef(null);
+  const switchSound = useRef(null);
 
   useEffect(() => {
     const image = new Image();
     image.src = "./images/yamita.webp";
     image.decode().catch(() => {});
+    const click = new Audio("./audio/light-switch.mp3");
+    click.preload = "auto";
+    switchSound.current = click;
 
     return () => {
       if (revealTimer.current) window.clearTimeout(revealTimer.current);
       birthdaySong.current?.pause();
+      click.pause();
     };
   }, []);
 
   const revealBirthday = () => {
+    switchSound.current?.play().catch((error) => {
+      console.error("No se pudo reproducir el apagador:", error);
+    });
     const song = new Audio("./audio/cepillin.mp3");
     song.preload = "auto";
     birthdaySong.current = song;

@@ -20,7 +20,7 @@ const server = Bun.serve({
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
-    const staticFileMatch = pathname.match(/\/(assets|audio|images)\/([\w.-]+)$/);
+    const staticFileMatch = pathname.match(/\/(assets|audio|images|documents)\/([\w.-]+)$/);
     if (staticFileMatch) {
       const [, directory, filename] = staticFileMatch;
       const file = Bun.file(new URL(`./dist/${directory}/${filename}`, import.meta.url));
@@ -28,6 +28,12 @@ const server = Bun.serve({
         ? "audio/mpeg"
         : filename.endsWith(".webp")
           ? "image/webp"
+          : filename.endsWith(".pdf")
+            ? "application/pdf"
+          : filename.endsWith(".jpeg") || filename.endsWith(".jpg")
+            ? "image/jpeg"
+            : filename.endsWith(".png")
+              ? "image/png"
           : undefined;
       return file.exists().then((exists) =>
         exists
@@ -65,10 +71,12 @@ const server = Bun.serve({
 });
 
 let sourceWatcher;
+let contentWatcher;
+let publicWatcher;
 let rebuildTimer;
 
 if (isDev) {
-  sourceWatcher = watch("./src", { recursive: true }, () => {
+  const rebuild = () => {
     clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(async () => {
       try {
@@ -79,8 +87,10 @@ if (isDev) {
         console.error("Could not rebuild the app:", error);
       }
     }, 100);
-  });
-
+  };
+  sourceWatcher = watch("./src", { recursive: true }, rebuild);
+  contentWatcher = watch("./content", { recursive: true }, rebuild);
+  publicWatcher = watch("./public", { recursive: true }, rebuild);
 }
 
 let isShuttingDown = false;
@@ -90,6 +100,8 @@ const shutdown = () => {
 
   clearTimeout(rebuildTimer);
   sourceWatcher?.close();
+  contentWatcher?.close();
+  publicWatcher?.close();
   server.stop(true);
   process.exit(0);
 };
